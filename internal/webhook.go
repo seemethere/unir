@@ -31,5 +31,17 @@ func NewWebhookHandler(secret []byte, clientToken string) *mux.Router {
 }
 
 func (handler *GithubWebhookHandler) handleGithubWebhook(w http.ResponseWriter, r *http.Request) {
-	log.Debugf("%s Recieved webhook", r.RequestURI)
+	log.Debugf("[%s] Recieved webhook", r.RequestURI)
+	payload, err := github.ValidatePayload(r, handler.Secret)
+	if err != nil {
+		log.Errorf("[%s] Failed to validate webhook secret, %v", r.RequestURI, err)
+		http.Error(w, "Secret did not match", http.StatusUnauthorized)
+		return
+	}
+	event, err := github.ParseWebhook(github.WebHookType(r), payload)
+	if err != nil {
+		log.Errorf("[%s] Faile to parse webhook, %v", r.RequestURI, err)
+		http.Error(w, "Bad payload", http.StatusBadRequest)
+		return
+	}
 }
