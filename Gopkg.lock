@@ -11,7 +11,7 @@
   branch = "master"
   name = "github.com/google/go-github"
   packages = ["github"]
-  revision = "8c08f4fba5e05e0fd2821a5f80cf0cf643bd5314"
+  revision = "8b3951c83275136717a7f5e993075b8ba9d09a7e"
 
 [[projects]]
   branch = "master"
@@ -59,7 +59,7 @@
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix","windows"]
-  revision = "665f6529cca930e27b831a0d1dafffbe1c172924"
+  revision = "bf42f188b9bc6f2cf5b8ee5a912ef1aedd0eba4c"
 
 [[projects]]
   name = "google.golang.org/appengine"
