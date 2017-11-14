@@ -21,5 +21,10 @@ test:
 ensure: $(DEP)
 	$< ensure -v -update
 
+.PHONY: image
 image:
 	docker build -t seemethere/unir:dev .
+
+.PHONY: run-dev
+run-dev: image
+	docker run --rm -i -p 8080:8080 --name unir-dev seemethere/unir:dev
