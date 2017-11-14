@@ -3,6 +3,7 @@ package internal
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/google/go-github/github"
 	"github.com/gorilla/mux"
@@ -38,10 +39,52 @@ func (handler *GithubWebhookHandler) handleGithubWebhook(w http.ResponseWriter, 
 		http.Error(w, "Secret did not match", http.StatusUnauthorized)
 		return
 	}
-	event, err := github.ParseWebhook(github.WebHookType(r), payload)
+	event, err := github.ParseWebHook(github.WebHookType(r), payload)
 	if err != nil {
-		log.Errorf("[%s] Faile to parse webhook, %v", r.RequestURI, err)
+		log.Errorf("[%s] Failed to parse webhook, %v", r.RequestURI, err)
 		http.Error(w, "Bad payload", http.StatusBadRequest)
 		return
+	}
+	switch e := event.(type) {
+	case github.PullRequestReviewEvent:
+		go handlePullRequestReview(handler.Client, e)
+	}
+}
+
+func getPullRequestReviews(ctx context.Context, client *github.Client, e github.PullRequestReviewEvent) ([]*github.PullRequestReview, error) {
+	log.Debugf("[%s] Pulling pull request reviews", e.Review.HTMLURL)
+	opt := &github.ListOptions{}
+	var reviews []*github.PullRequestReview
+	for {
+		reviewsByPage, resp, err := client.PullRequests.ListReviews(
+			ctx,
+			*e.Repo.Owner.Name,
+			*e.Repo.Name,
+			*e.PullRequest.Number,
+			opt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		reviews = append(reviews, reviewsByPage...)
+		if resp.NextPage == 0 {
+			break
+		}
+		opt.Page = resp.NextPage
+	}
+	return reviews, nil
+}
+
+func handlePullRequestReview(client *github.Client, e github.PullRequestReviewEvent) {
+	log.Debugf("[%s] STARTED handling pull request review", e.Review.HTMLURL)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	reviews, err := getPullRequestReviews(ctx, client, e)
+	if err != nil {
+		log.Errorf("[%s] Error grabbing pull request reviews: %v", e.Review.HTMLURL, err)
+		return
+	}
+	for _, review := range reviews {
+		log.Infof("%+v", review)
 	}
 }
