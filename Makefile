@@ -27,4 +27,4 @@ image:
 
 .PHONY: run-dev
 run-dev: image
-	docker run --rm -i -p 8080:8080 --name unir-dev seemethere/unir:dev
+	docker run --rm -i -p 8080:8080 --name unir-dev -e UNIR_WEBHOOK_SECRET -e UNIR_CLIENT_TOKEN seemethere/unir:dev -debug
