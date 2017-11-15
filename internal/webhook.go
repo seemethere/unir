@@ -46,19 +46,19 @@ func (handler *GithubWebhookHandler) handleGithubWebhook(w http.ResponseWriter, 
 		return
 	}
 	switch e := event.(type) {
-	case github.PullRequestReviewEvent:
-		go handlePullRequestReview(handler.Client, e)
+	case *github.PullRequestReviewEvent:
+		go handlePullRequestReview(handler.Client, *e)
 	}
 }
 
 func getPullRequestReviews(ctx context.Context, client *github.Client, e github.PullRequestReviewEvent) ([]*github.PullRequestReview, error) {
-	log.Debugf("[%s] Pulling pull request reviews", e.Review.HTMLURL)
+	log.Debugf("[%s] Pulling pull request reviews", *e.Review.HTMLURL)
 	opt := &github.ListOptions{}
 	var reviews []*github.PullRequestReview
 	for {
 		reviewsByPage, resp, err := client.PullRequests.ListReviews(
 			ctx,
-			*e.Repo.Owner.Name,
+			*e.Repo.Owner.Login,
 			*e.Repo.Name,
 			*e.PullRequest.Number,
 			opt,
@@ -75,16 +75,49 @@ func getPullRequestReviews(ctx context.Context, client *github.Client, e github.
 	return reviews, nil
 }
 
+// TODO: Write a test
+func RemoveStaleReviews(currentSha string, reviews []*github.PullRequestReview) []*github.PullRequestReview {
+	var freshReviews []*github.PullRequestReview
+	for _, review := range reviews {
+		// Ignore stale reviews
+		if *review.CommitID != currentSha {
+			log.Debugf(
+				"Skipping review %s, sha does not match latest",
+				*review.HTMLURL,
+			)
+			continue
+		}
+		freshReviews = append(freshReviews, review)
+	}
+	return freshReviews
+}
+
+func GenerateReviewMap(reviews []*github.PullRequestReview) map[string]bool {
+	reviewMap := make(map[string]bool)
+	for _, review := range reviews {
+		switch *review.State {
+		// Cases outside of these 2 do not matter
+		case "APPROVED":
+			reviewMap[*review.User.Login] = true
+			break
+		case "CHANGES_REQUEST":
+			reviewMap[*review.User.Login] = false
+			break
+		}
+	}
+	return reviewMap
+}
+
 func handlePullRequestReview(client *github.Client, e github.PullRequestReviewEvent) {
-	log.Debugf("[%s] STARTED handling pull request review", e.Review.HTMLURL)
+	log.Debugf("[%s] STARTED handling pull request review", *e.Review.HTMLURL)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
-	reviews, err := getPullRequestReviews(ctx, client, e)
+	allReviews, err := getPullRequestReviews(ctx, client, e)
 	if err != nil {
-		log.Errorf("[%s] Error grabbing pull request reviews: %v", e.Review.HTMLURL, err)
+		log.Errorf("[%s] Error grabbing pull request reviews: %v", *e.Review.HTMLURL, err)
 		return
 	}
-	for _, review := range reviews {
-		log.Infof("%+v", review)
-	}
+	reviews := RemoveStaleReviews(*e.PullRequest.Head.SHA, allReviews)
+	// TODO: Write a function to grab the whitelist, grab from collaborators if one does not exist
+	_ = GenerateReviewMap(reviews)
 }
