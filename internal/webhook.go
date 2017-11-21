@@ -2,9 +2,9 @@ package internal
 
 import (
 	"context"
+	"io/ioutil"
 	"net/http"
 	"time"
-	"io/ioutil"
 
 	"github.com/google/go-github/github"
 	"github.com/gorilla/mux"
@@ -150,7 +150,7 @@ func handlePullRequestReview(client *github.Client, e github.PullRequestReviewEv
 	votes := GenerateReviewMap(reviews)
 	opts := AgreementOptions{
 		NeedsConsensus: config.ConsensusNeeded,
-		Threshold: config.ApprovalsNeeded,
+		Threshold:      config.ApprovalsNeeded,
 	}
 	if AgreementReached(config.Whitelist, votes, &opts) {
 		log.Debugf("Agreement reached!")
