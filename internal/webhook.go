@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"time"
+	"io/ioutil"
 
 	"github.com/google/go-github/github"
 	"github.com/gorilla/mux"
@@ -108,6 +109,29 @@ func GenerateReviewMap(reviews []*github.PullRequestReview) map[string]bool {
 	return reviewMap
 }
 
+func GrabConfig(ctx context.Context, client *github.Client, repo, owner string) (UnirConfig, error) {
+	r, err := client.Repositories.DownloadContents(
+		ctx,
+		owner,
+		repo,
+		".unir.yml",
+		&github.RepositoryContentGetOptions{Ref: "master"},
+	)
+	// TODO: Handle errors when this file doesn't exist
+	if err != nil {
+		return UnirConfig{}, err
+	}
+	body, err := ioutil.ReadAll(r)
+	if err != nil {
+		return UnirConfig{}, err
+	}
+	config, err := ReadConfig(body)
+	if err != nil {
+		return UnirConfig{}, err
+	}
+	return config, nil
+}
+
 func handlePullRequestReview(client *github.Client, e github.PullRequestReviewEvent) {
 	log.Debugf("[%s] STARTED handling pull request review", *e.Review.HTMLURL)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
@@ -118,6 +142,17 @@ func handlePullRequestReview(client *github.Client, e github.PullRequestReviewEv
 		return
 	}
 	reviews := RemoveStaleReviews(*e.PullRequest.Head.SHA, allReviews)
-	// TODO: Write a function to grab the whitelist, grab from collaborators if one does not exist
-	_ = GenerateReviewMap(reviews)
+	config, err := GrabConfig(ctx, client, *e.Repo.Name, *e.Repo.Owner.Login)
+	if err != nil {
+		log.Errorf("[%s] Error grabbing configuration: %v", *e.Review.HTMLURL, err)
+		return
+	}
+	votes := GenerateReviewMap(reviews)
+	opts := AgreementOptions{
+		NeedsConsensus: config.ConsensusNeeded,
+		Threshold: config.ApprovalsNeeded,
+	}
+	if AgreementReached(config.Whitelist, votes, &opts) {
+		log.Debugf("Agreement reached!")
+	}
 }
