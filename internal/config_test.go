@@ -10,6 +10,7 @@ whitelist:
 - bob
 - alice
 approvals_needed: 3
+consensus_needed: false
 `)
 	conf, err := ReadConfig(input)
 	if err != nil {
@@ -18,6 +19,10 @@ approvals_needed: 3
 	}
 	if conf.ApprovalsNeeded != 3 {
 		t.Errorf("Expected 3 ApprovalsNeeded, got %v instead", conf.ApprovalsNeeded)
+		return
+	}
+	if conf.ConsensusNeeded {
+		t.Errorf("Expected false ConsensusNeeded, got true instead")
 		return
 	}
 	userMap := make(map[string]bool)
