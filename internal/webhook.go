@@ -101,7 +101,7 @@ func GenerateReviewMap(reviews []*github.PullRequestReview) map[string]bool {
 		// Cases outside of these 2 do not matter
 		case "APPROVED":
 			reviewMap[*review.User.Login] = true
-		case "CHANGES_REQUEST":
+		case "CHANGES_REQUESTED":
 			reviewMap[*review.User.Login] = false
 		}
 	}
