@@ -30,10 +30,9 @@ consensus_needed: false
 		userMap[user] = true
 	}
 	for _, expectedUser := range []string{"bob", "alice"} {
-		found, _ := userMap[expectedUser]
+		found := userMap[expectedUser]
 		if !found {
 			t.Errorf("Expected to find user %s but was not found...", expectedUser)
 		}
-		return
 	}
 }

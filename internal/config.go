@@ -8,6 +8,7 @@ type UnirConfig struct {
 	Whitelist       []string `yaml:"whitelist"`
 	ApprovalsNeeded int      `yaml:"approvals_needed"`
 	ConsensusNeeded bool     `yaml:"consensus_needed"`
+	MergeMethod     string   `yaml:"merge_method"`
 }
 
 func ReadConfig(input []byte) (UnirConfig, error) {

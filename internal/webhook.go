@@ -2,6 +2,7 @@ package internal
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"time"
@@ -100,22 +101,20 @@ func GenerateReviewMap(reviews []*github.PullRequestReview) map[string]bool {
 		// Cases outside of these 2 do not matter
 		case "APPROVED":
 			reviewMap[*review.User.Login] = true
-			break
 		case "CHANGES_REQUEST":
 			reviewMap[*review.User.Login] = false
-			break
 		}
 	}
 	return reviewMap
 }
 
-func GrabConfig(ctx context.Context, client *github.Client, repo, owner string) (UnirConfig, error) {
+func GrabConfig(ctx context.Context, client *github.Client, repo, owner string, baseRef string) (UnirConfig, error) {
 	r, err := client.Repositories.DownloadContents(
 		ctx,
 		owner,
 		repo,
 		".unir.yml",
-		&github.RepositoryContentGetOptions{Ref: "master"},
+		&github.RepositoryContentGetOptions{Ref: baseRef},
 	)
 	// TODO: Handle errors when this file doesn't exist
 	if err != nil {
@@ -132,6 +131,10 @@ func GrabConfig(ctx context.Context, client *github.Client, repo, owner string) 
 	return config, nil
 }
 
+// TODO: Write a function to save from people editing `.unir.yml` and auto-merging it
+//       You can do this by getting a list of files, checking if it contains `.unir.yml`
+//       and exiting early before it gets to the point of potential merging
+
 func handlePullRequestReview(client *github.Client, e github.PullRequestReviewEvent) {
 	log.Debugf("[%s] STARTED handling pull request review", *e.Review.HTMLURL)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
@@ -142,7 +145,7 @@ func handlePullRequestReview(client *github.Client, e github.PullRequestReviewEv
 		return
 	}
 	reviews := RemoveStaleReviews(*e.PullRequest.Head.SHA, allReviews)
-	config, err := GrabConfig(ctx, client, *e.Repo.Name, *e.Repo.Owner.Login)
+	config, err := GrabConfig(ctx, client, *e.Repo.Name, *e.Repo.Owner.Login, e.PullRequest.Base.GetRef())
 	if err != nil {
 		log.Errorf("[%s] Error grabbing configuration: %v", *e.Review.HTMLURL, err)
 		return
@@ -152,7 +155,51 @@ func handlePullRequestReview(client *github.Client, e github.PullRequestReviewEv
 		NeedsConsensus: config.ConsensusNeeded,
 		Threshold:      config.ApprovalsNeeded,
 	}
-	if AgreementReached(config.Whitelist, votes, &opts) {
-		log.Debugf("Agreement reached!")
+
+	mergeMethod := "merge"
+	if config.MergeMethod != "" {
+		mergeMethod = config.MergeMethod
 	}
+
+	// Exit early on non-agreements
+	if !AgreementReached(config.Whitelist, votes, &opts) {
+		log.Infof("[%s] Agreement not reached! Staying put on %s/%s#%d", *e.Review.HTMLURL, *e.Repo.Owner.Login, *e.Repo.Name, *e.PullRequest.Number)
+		return
+	}
+
+	log.Infof("[%s] Agreement reached! Merging %s/%s#%d", *e.Review.HTMLURL, *e.Repo.Owner.Login, *e.Repo.Name, *e.PullRequest.Number)
+	result, resp, err := client.PullRequests.Merge(
+		ctx,
+		*e.Repo.Owner.Login,
+		*e.Repo.Name,
+		*e.PullRequest.Number,
+		"Merged with github.com/seemethere/unir!",
+		&github.PullRequestOptions{MergeMethod: mergeMethod, SHA: *e.PullRequest.Head.SHA},
+	)
+
+	// We don't reach our success criteria
+	if resp.StatusCode != 200 {
+		log.Errorf("[%s] Merge failed for %s/%s#%d: %s, %v", *e.Review.HTMLURL, *e.Repo.Owner.Login, *e.Repo.Name, *e.PullRequest.Number, result.GetMessage(), err)
+		errorMessage := fmt.Sprintf("Unable to merge! %s", result.GetMessage())
+		_, _, err := client.Issues.CreateComment(
+			ctx,
+			*e.Repo.Owner.Login,
+			*e.Repo.Name,
+			*e.PullRequest.Number,
+			&github.IssueComment{Body: &errorMessage},
+		)
+		if err != nil {
+			log.Errorf(
+				"[%s] Error posting comment in %s/%s#%d: %v",
+				*e.Review.HTMLURL,
+				*e.Repo.Owner.Login,
+				*e.Repo.Name,
+				*e.PullRequest.Number,
+				err,
+			)
+		}
+		return
+	}
+
+	log.Infof("[%s] Merge successful for %s/%s#%d", *e.Review.HTMLURL, *e.Repo.Owner.Login, *e.Repo.Name, *e.PullRequest.Number)
 }
