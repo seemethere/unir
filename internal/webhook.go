@@ -77,6 +77,30 @@ func getPullRequestReviews(ctx context.Context, client *github.Client, e github.
 	return reviews, nil
 }
 
+func getPullRequestFiles(ctx context.Context, client *github.Client, e github.PullRequestReviewEvent) ([]*github.CommitFile, error) {
+	log.Debugf("[%s] Pull pull request files", *e.Review.HTMLURL)
+	opt := &github.ListOptions{}
+	var files []*github.CommitFile
+	for {
+		filesByPage, resp, err := client.PullRequests.ListFiles(
+			ctx,
+			*e.Repo.Owner.Login,
+			*e.Repo.Name,
+			*e.PullRequest.Number,
+			opt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		files = append(files, filesByPage...)
+		if resp.NextPage == 0 {
+			break
+		}
+		opt.Page = resp.NextPage
+	}
+	return files, nil
+}
+
 // TODO: Write a test
 func RemoveStaleReviews(currentSha string, reviews []*github.PullRequestReview) []*github.PullRequestReview {
 	var freshReviews []*github.PullRequestReview
@@ -165,6 +189,17 @@ func handlePullRequestReview(client *github.Client, e github.PullRequestReviewEv
 	if !AgreementReached(config.Whitelist, votes, &opts) {
 		log.Infof("[%s] Agreement not reached! Staying put on %s/%s#%d", *e.Review.HTMLURL, *e.Repo.Owner.Login, *e.Repo.Name, *e.PullRequest.Number)
 		return
+	}
+
+	changedFiles, err := getPullRequestFiles(ctx, client, e)
+	if err != nil {
+		log.Errorf("[%s] Error grabbing changed files: %v", *e.Review.HTMLURL, err)
+	}
+	for _, file := range changedFiles {
+		if file.GetFilename() == ".unir.yml" {
+			log.Errorf("[%s] .unir.yml found in PR, skipping", *e.Review.HTMLURL)
+			return
+		}
 	}
 
 	log.Infof("[%s] Agreement reached! Merging %s/%s#%d", *e.Review.HTMLURL, *e.Repo.Owner.Login, *e.Repo.Name, *e.PullRequest.Number)
