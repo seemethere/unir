@@ -101,6 +101,20 @@ func getPullRequestFiles(ctx context.Context, client *github.Client, e github.Pu
 	return files, nil
 }
 
+func editingConfig(ctx context.Context, client *github.Client, e github.PullRequestReviewEvent) bool {
+	changedFiles, err := getPullRequestFiles(ctx, client, e)
+	if err != nil {
+		log.Errorf("[%s] Error grabbing changed files: %v", *e.Review.HTMLURL, err)
+	}
+	for _, file := range changedFiles {
+		if file.GetFilename() == ".unir.yml" {
+			log.Errorf("[%s] .unir.yml found in PR, skipping", *e.Review.HTMLURL)
+			return true
+		}
+	}
+	return false
+}
+
 // TODO: Write a test
 func RemoveStaleReviews(currentSha string, reviews []*github.PullRequestReview) []*github.PullRequestReview {
 	var freshReviews []*github.PullRequestReview
@@ -191,15 +205,8 @@ func handlePullRequestReview(client *github.Client, e github.PullRequestReviewEv
 		return
 	}
 
-	changedFiles, err := getPullRequestFiles(ctx, client, e)
-	if err != nil {
-		log.Errorf("[%s] Error grabbing changed files: %v", *e.Review.HTMLURL, err)
-	}
-	for _, file := range changedFiles {
-		if file.GetFilename() == ".unir.yml" {
-			log.Errorf("[%s] .unir.yml found in PR, skipping", *e.Review.HTMLURL)
-			return
-		}
+	if editingConfig(ctx, client, e) {
+		return
 	}
 
 	log.Infof("[%s] Agreement reached! Merging %s/%s#%d", *e.Review.HTMLURL, *e.Repo.Owner.Login, *e.Repo.Name, *e.PullRequest.Number)
