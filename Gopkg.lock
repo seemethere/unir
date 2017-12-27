@@ -11,7 +11,7 @@
   branch = "master"
   name = "github.com/google/go-github"
   packages = ["github"]
-  revision = "fbfee053c26dab3772adfc7799d995eed379133e"
+  revision = "0c3b302de2a6de84a2511db47ea1bb2ff8146830"
 
 [[projects]]
   branch = "master"
@@ -41,7 +41,7 @@
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
-  revision = "94eea52f7b742c7cbe0b03b22f0c4c8631ece122"
+  revision = "d585fd2cc9195196078f516b69daff6744ef5e84"
 
 [[projects]]
   branch = "master"
@@ -53,13 +53,13 @@
   branch = "master"
   name = "golang.org/x/oauth2"
   packages = [".","internal"]
-  revision = "00dc70155e4c968f5afa403a799926838a4aa28f"
+  revision = "197281d4e0ecd78c33865daf9c6e51626feefcb2"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix","windows"]
-  revision = "53aa286056ef226755cd898109dbcdaba8ac0b81"
+  revision = "83801418e1b59fb1880e363299581ee543af32ca"
 
 [[projects]]
   name = "google.golang.org/appengine"
