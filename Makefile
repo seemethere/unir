@@ -36,3 +36,8 @@ image: ## Make docker image
 run-dev: ## Run server in development mode
 run-dev: image
 	docker run --rm -i -p 8080:8080 --name unir-dev -e UNIR_WEBHOOK_SECRET -e UNIR_CLIENT_TOKEN seemethere/unir:dev -debug
+
+.PHONY: release
+release: # Release images to Docker Hub
+release: VERSION
+	VERSION=$(shell cat $<) ./release.sh
