@@ -215,7 +215,7 @@ func handlePullRequestReview(client *github.Client, e github.PullRequestReviewEv
 		*e.Repo.Owner.Login,
 		*e.Repo.Name,
 		*e.PullRequest.Number,
-		"Merged with github.com/seemethere/unir!",
+		"Merged with https://github.com/seemethere/unir",
 		&github.PullRequestOptions{MergeMethod: mergeMethod, SHA: *e.PullRequest.Head.SHA},
 	)
 
