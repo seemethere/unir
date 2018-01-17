@@ -8,26 +8,23 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bradleyfalzon/ghinstallation"
 	"github.com/google/go-github/github"
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/oauth2"
 )
 
 type GithubWebhookHandler struct {
-	Secret []byte
-	Client *github.Client
+	Secret        []byte
+	integrationID int
+	keyfile       string
 }
 
-func NewWebhookHandler(secret []byte, clientToken string) *mux.Router {
-	ctx := context.Background()
-	ts := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: clientToken},
-	)
-	client := github.NewClient(oauth2.NewClient(ctx, ts))
+func NewWebhookHandler(secret []byte, integrationID int, keyfile string) *mux.Router {
 	handler := GithubWebhookHandler{
-		Secret: secret,
-		Client: client,
+		Secret:        secret,
+		integrationID: integrationID,
+		keyfile:       keyfile,
 	}
 	router := mux.NewRouter()
 	router.Handle("/", http.HandlerFunc(handler.handleGithubWebhook)).Methods("POST")
@@ -50,7 +47,7 @@ func (handler *GithubWebhookHandler) handleGithubWebhook(w http.ResponseWriter, 
 	}
 	switch e := event.(type) {
 	case *github.PullRequestReviewEvent:
-		go handlePullRequestReview(handler.Client, *e)
+		go handlePullRequestReview(handler.integrationID, handler.keyfile, *e)
 	}
 }
 
@@ -174,7 +171,17 @@ func GrabConfig(ctx context.Context, client *github.Client, repo, owner string, 
 //       You can do this by getting a list of files, checking if it contains `.unir.yml`
 //       and exiting early before it gets to the point of potential merging
 
-func handlePullRequestReview(client *github.Client, e github.PullRequestReviewEvent) {
+func handlePullRequestReview(integrationID int, keyfile string, e github.PullRequestReviewEvent) {
+	itr, err := ghinstallation.NewKeyFromFile(
+		http.DefaultTransport,
+		integrationID,
+		*e.Installation.ID,
+		keyfile,
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	client := github.NewClient(&http.Client{Transport: itr})
 	log.Debugf("[%s] STARTED handling pull request review", *e.Review.HTMLURL)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
