@@ -41,3 +41,14 @@ run-dev: image
 release: # Release images to Docker Hub
 release: VERSION
 	VERSION=$(shell cat $<) ./release.sh
+	$(RM) CHANGELOG.md
+	$(MAKE) CHANGELOG.md
+
+CHANGELOG.md:
+	docker run --rm \
+		--interactive \
+		--tty \
+		--net "host" \
+		-v "$(CURDIR):$(CURDIR)" \
+		-w $(CURDIR) \
+		-it muccg/github-changelog-generator -u seemethere -p unir

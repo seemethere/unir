@@ -25,6 +25,8 @@ main() {
 	VERSION=${VERSION:-dev}
 	build_and_push "$VERSION"
 	build_and_push "latest"
+	git tag "v$VERSION"
+	git push --tags
 }
 
 main
