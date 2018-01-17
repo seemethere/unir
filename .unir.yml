@@ -6,5 +6,6 @@ whitelist:
     - corbin-coleman
     - jose-bigio
     - andrewhsu
+    - robbkistler
 approvals_needed: 2
 consensus_needed: true
