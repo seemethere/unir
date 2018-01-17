@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/go-github/github"
@@ -138,9 +139,9 @@ func GenerateReviewMap(reviews []*github.PullRequestReview) map[string]bool {
 		switch *review.State {
 		// Cases outside of these 2 do not matter
 		case "APPROVED":
-			reviewMap[*review.User.Login] = true
+			reviewMap[strings.ToLower(*review.User.Login)] = true
 		case "CHANGES_REQUESTED":
-			reviewMap[*review.User.Login] = false
+			reviewMap[strings.ToLower(*review.User.Login)] = false
 		}
 	}
 	return reviewMap

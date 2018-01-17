@@ -1,5 +1,9 @@
 package internal
 
+import (
+	"strings"
+)
+
 type AgreementOptions struct {
 	Threshold      int
 	NeedsConsensus bool
@@ -14,7 +18,7 @@ func AgreementReached(members []string, votes map[string]bool, opts *AgreementOp
 	}
 	numFor := 0
 	for _, member := range members {
-		isFor, voted := votes[member]
+		isFor, voted := votes[strings.ToLower(member)]
 		// cases where members do not have a vote in votes
 		if !voted {
 			continue
