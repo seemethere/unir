@@ -1,5 +1,13 @@
 # Change Log
 
+## [v0.2.0](https://github.com/seemethere/unir/tree/v0.2.0) (2018-01-17)
+[Full Changelog](https://github.com/seemethere/unir/compare/v0.1.1...v0.2.0)
+
+**Merged pull requests:**
+
+- Change webhook url to just be the root [\#5](https://github.com/seemethere/unir/pull/5) ([seemethere](https://github.com/seemethere))
+- Add initial travis file [\#3](https://github.com/seemethere/unir/pull/3) ([seemethere](https://github.com/seemethere))
+
 ## [v0.1.1](https://github.com/seemethere/unir/tree/v0.1.1) (2018-01-17)
 [Full Changelog](https://github.com/seemethere/unir/compare/v0.1.0...v0.1.1)
 
