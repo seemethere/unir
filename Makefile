@@ -1,5 +1,7 @@
 DEP="$(shell go env GOPATH)/bin/dep"
 
+all: build test
+
 $(DEP): ## Grab golang/dep utility
 	go get github.com/golang/dep/cmd/dep
 
@@ -18,6 +20,10 @@ build/unir: cmd/unir/main.go
 
 build: ## Build all targets
 build: build/unir
+
+.PHONY: install
+install:
+	go install -v ./...
 
 .PHONY: test
 test: ## Run all tests
