@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/seemethere/unir/internal"
 	log "github.com/sirupsen/logrus"
@@ -12,11 +13,20 @@ import (
 
 var (
 	WEBHOOK_SECRET = "UNIR_WEBHOOK_SECRET"
-	CLIENT_TOKEN   = "UNIR_CLIENT_TOKEN"
+	INTEGRATION_ID = "UNIR_INTEGRATION_ID"
+	KEYFILE        = "UNIR_KEYFILE"
 )
 
 func main() {
-	router := internal.NewWebhookHandler([]byte(os.Getenv(WEBHOOK_SECRET)), os.Getenv(CLIENT_TOKEN))
+	id, err := strconv.Atoi(os.Getenv(INTEGRATION_ID))
+	if err != nil {
+		log.Fatal(err)
+	}
+	router := internal.NewWebhookHandler(
+		[]byte(os.Getenv(WEBHOOK_SECRET)),
+		id,
+		os.Getenv(KEYFILE),
+	)
 	debug := flag.Bool("debug", false, "Toggle debug mode")
 	port := flag.String("port", "8080", "Port to bind unir to")
 	flag.Parse()
