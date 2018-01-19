@@ -48,6 +48,8 @@ func (handler *GithubWebhookHandler) handleGithubWebhook(w http.ResponseWriter, 
 	switch e := event.(type) {
 	case *github.PullRequestReviewEvent:
 		go handlePullRequestReview(handler.integrationID, handler.keyfile, *e)
+	case *github.StatusEvent:
+		log.Infof("Recieved a status event")
 	}
 }
 
