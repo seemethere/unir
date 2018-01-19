@@ -48,19 +48,26 @@ func (handler *GithubWebhookHandler) handleGithubWebhook(w http.ResponseWriter, 
 	switch e := event.(type) {
 	case *github.PullRequestReviewEvent:
 		go handlePullRequestReview(handler.integrationID, handler.keyfile, *e)
+	case *github.StatusEvent:
+		go handleStatus(handler.integrationID, handler.keyfile, *e)
 	}
 }
 
-func getPullRequestReviews(ctx context.Context, client *github.Client, e github.PullRequestReviewEvent) ([]*github.PullRequestReview, error) {
-	log.Debugf("[%s] Pulling pull request reviews", *e.Review.HTMLURL)
+func getPullRequestReviews(
+	ctx context.Context,
+	client *github.Client,
+	owner, repo string,
+	prNumber int,
+) ([]*github.PullRequestReview, error) {
+	log.Debugf("Pulling pull request reviews for https://github.com/%s/%s/pull/%d", owner, repo, prNumber)
 	opt := &github.ListOptions{}
 	var reviews []*github.PullRequestReview
 	for {
 		reviewsByPage, resp, err := client.PullRequests.ListReviews(
 			ctx,
-			*e.Repo.Owner.Login,
-			*e.Repo.Name,
-			*e.PullRequest.Number,
+			owner,
+			repo,
+			prNumber,
 			opt,
 		)
 		if err != nil {
@@ -75,16 +82,21 @@ func getPullRequestReviews(ctx context.Context, client *github.Client, e github.
 	return reviews, nil
 }
 
-func getPullRequestFiles(ctx context.Context, client *github.Client, e github.PullRequestReviewEvent) ([]*github.CommitFile, error) {
-	log.Debugf("[%s] Pull pull request files", *e.Review.HTMLURL)
+func getPullRequestFiles(
+	ctx context.Context,
+	client *github.Client,
+	owner, repo string,
+	prNumber int,
+) ([]*github.CommitFile, error) {
+	log.Debugf("Pulling pull request files for https://github.com/%s/%s/pull/%d", owner, repo, prNumber)
 	opt := &github.ListOptions{}
 	var files []*github.CommitFile
 	for {
 		filesByPage, resp, err := client.PullRequests.ListFiles(
 			ctx,
-			*e.Repo.Owner.Login,
-			*e.Repo.Name,
-			*e.PullRequest.Number,
+			owner,
+			repo,
+			prNumber,
 			opt,
 		)
 		if err != nil {
@@ -99,14 +111,19 @@ func getPullRequestFiles(ctx context.Context, client *github.Client, e github.Pu
 	return files, nil
 }
 
-func editingConfig(ctx context.Context, client *github.Client, e github.PullRequestReviewEvent) bool {
-	changedFiles, err := getPullRequestFiles(ctx, client, e)
+func editingConfig(
+	ctx context.Context,
+	client *github.Client,
+	owner, repo string,
+	prNumber int,
+) bool {
+	changedFiles, err := getPullRequestFiles(ctx, client, owner, repo, prNumber)
 	if err != nil {
-		log.Errorf("[%s] Error grabbing changed files: %v", *e.Review.HTMLURL, err)
+		log.Errorf("Error grabbing changed files for https://github.com/%s/%s/pull/%d", owner, repo, prNumber)
 	}
 	for _, file := range changedFiles {
 		if file.GetFilename() == ".unir.yml" {
-			log.Errorf("[%s] .unir.yml found in PR, skipping", *e.Review.HTMLURL)
+			log.Errorf(".unir.yml found in PR https://github.com/%s/%s/pull/%d, skipping", owner, repo, prNumber)
 			return true
 		}
 	}
@@ -167,33 +184,86 @@ func GrabConfig(ctx context.Context, client *github.Client, repo, owner string, 
 	return config, nil
 }
 
-// TODO: Write a function to save from people editing `.unir.yml` and auto-merging it
-//       You can do this by getting a list of files, checking if it contains `.unir.yml`
-//       and exiting early before it gets to the point of potential merging
-
-func handlePullRequestReview(integrationID int, keyfile string, e github.PullRequestReviewEvent) {
+func createGithubClient(integrationID, installationID int, keyfile string) *github.Client {
 	itr, err := ghinstallation.NewKeyFromFile(
 		http.DefaultTransport,
 		integrationID,
-		*e.Installation.ID,
+		installationID,
 		keyfile,
 	)
 	if err != nil {
 		log.Fatal(err)
 	}
-	client := github.NewClient(&http.Client{Transport: itr})
-	log.Debugf("[%s] STARTED handling pull request review", *e.Review.HTMLURL)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	defer cancel()
-	allReviews, err := getPullRequestReviews(ctx, client, e)
-	if err != nil {
-		log.Errorf("[%s] Error grabbing pull request reviews: %v", *e.Review.HTMLURL, err)
+	return github.NewClient(&http.Client{Transport: itr})
+}
+
+func handleStatus(integrationID int, keyfile string, statusEvent github.StatusEvent) {
+	if *statusEvent.State != "success" {
+		log.Debugf("Skipping unsuccessful commit status event %s", *statusEvent.TargetURL)
 		return
 	}
-	reviews := RemoveStaleReviews(*e.PullRequest.Head.SHA, allReviews)
-	config, err := GrabConfig(ctx, client, *e.Repo.Name, *e.Repo.Owner.Login, e.PullRequest.Base.GetRef())
+	client := createGithubClient(integrationID, *statusEvent.Installation.ID, keyfile)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	// Grab open pull requests relating to sha with the most updated being first
+	// Could potentially not grab all pull requests if there are more than 100
+	// pull requests that all reference the same commit SHA. ¯\_(ツ)_/¯
+	query := fmt.Sprintf(
+		"is:pr is:open sort:updated-desc sha:%s repo:%s/%s",
+		*statusEvent.Commit.SHA,
+		*statusEvent.Repo.Owner.Login,
+		*statusEvent.Repo.Name,
+	)
+	searchResults, _, err := client.Search.Issues(ctx, query, nil)
 	if err != nil {
-		log.Errorf("[%s] Error grabbing configuration: %v", *e.Review.HTMLURL, err)
+		log.Errorf("Error grabbing issues related to SHA: %s", *statusEvent.Commit.SHA)
+		return
+	}
+	for _, issue := range searchResults.Issues {
+		pullRequest, _, err := client.PullRequests.Get(
+			ctx,
+			*statusEvent.Repo.Owner.Login,
+			*statusEvent.Repo.Name,
+			*issue.Number,
+		)
+		if err != nil {
+			log.Errorf("Error grabbing pull request information for %s", issue.HTMLURL)
+			return
+		}
+		// Don't waste API calls on old commits
+		if *statusEvent.Commit.SHA != *pullRequest.Head.SHA {
+			log.Infof("Commit status for commit %s does not match the head SHA of its associated PR, skipping...", *statusEvent.Commit.SHA)
+			return
+		}
+		mergePullRequest(
+			client,
+			*statusEvent.Repo.Owner.Login,
+			*statusEvent.Repo.Name,
+			*pullRequest.Head.SHA,
+			*pullRequest.Number,
+		)
+	}
+}
+
+func handlePullRequestReview(integrationID int, keyfile string, reviewEvent github.PullRequestReviewEvent) {
+	client := createGithubClient(integrationID, *reviewEvent.Installation.ID, keyfile)
+	log.Debugf("[%s] STARTED handling pull request review", *reviewEvent.Review.HTMLURL)
+	mergePullRequest(client, *reviewEvent.Repo.Owner.Login, *reviewEvent.Repo.Name, *reviewEvent.PullRequest.Head.SHA, *reviewEvent.PullRequest.Number)
+}
+
+func mergePullRequest(client *github.Client, owner, repo, sha string, prNumber int) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	githubURL := fmt.Sprintf("https://github.com/%s/%s/pull/%d", owner, repo, prNumber)
+	allReviews, err := getPullRequestReviews(ctx, client, owner, repo, prNumber)
+	if err != nil {
+		log.Errorf("Error grabbing pull request reviews for %s: %v", githubURL, err)
+		return
+	}
+	reviews := RemoveStaleReviews(sha, allReviews)
+	config, err := GrabConfig(ctx, client, repo, owner, "master")
+	if err != nil {
+		log.Errorf("Error grabbing configuration for %s: %v", githubURL, err)
 		return
 	}
 	votes := GenerateReviewMap(reviews)
@@ -209,47 +279,40 @@ func handlePullRequestReview(integrationID int, keyfile string, e github.PullReq
 
 	// Exit early on non-agreements
 	if !AgreementReached(config.Whitelist, votes, &opts) {
-		log.Infof("[%s] Agreement not reached! Staying put on %s/%s#%d", *e.Review.HTMLURL, *e.Repo.Owner.Login, *e.Repo.Name, *e.PullRequest.Number)
+		log.Infof("Agreement not reached! Staying put on %s", githubURL)
 		return
 	}
 
-	if editingConfig(ctx, client, e) {
+	if editingConfig(ctx, client, owner, repo, prNumber) {
 		return
 	}
 
-	log.Infof("[%s] Agreement reached! Merging %s/%s#%d", *e.Review.HTMLURL, *e.Repo.Owner.Login, *e.Repo.Name, *e.PullRequest.Number)
+	log.Infof("Agreement reached! Merging %s", githubURL)
 	result, resp, err := client.PullRequests.Merge(
 		ctx,
-		*e.Repo.Owner.Login,
-		*e.Repo.Name,
-		*e.PullRequest.Number,
+		owner,
+		repo,
+		prNumber,
 		"Merged with https://github.com/seemethere/unir",
-		&github.PullRequestOptions{MergeMethod: mergeMethod, SHA: *e.PullRequest.Head.SHA},
+		&github.PullRequestOptions{MergeMethod: mergeMethod, SHA: sha},
 	)
 
 	// We don't reach our success criteria
 	if resp.StatusCode != 200 {
-		log.Errorf("[%s] Merge failed for %s/%s#%d: %s, %v", *e.Review.HTMLURL, *e.Repo.Owner.Login, *e.Repo.Name, *e.PullRequest.Number, result.GetMessage(), err)
+		log.Errorf("Merge failed for %s: %s, %v", githubURL, result.GetMessage(), err)
 		errorMessage := fmt.Sprintf("Unable to merge! %s", result.GetMessage())
 		_, _, err := client.Issues.CreateComment(
 			ctx,
-			*e.Repo.Owner.Login,
-			*e.Repo.Name,
-			*e.PullRequest.Number,
+			owner,
+			repo,
+			prNumber,
 			&github.IssueComment{Body: &errorMessage},
 		)
 		if err != nil {
-			log.Errorf(
-				"[%s] Error posting comment in %s/%s#%d: %v",
-				*e.Review.HTMLURL,
-				*e.Repo.Owner.Login,
-				*e.Repo.Name,
-				*e.PullRequest.Number,
-				err,
-			)
+			log.Errorf("Error posting comment in %s: %v", githubURL, err)
 		}
 		return
 	}
 
-	log.Infof("[%s] Merge successful for %s/%s#%d", *e.Review.HTMLURL, *e.Repo.Owner.Login, *e.Repo.Name, *e.PullRequest.Number)
+	log.Infof("Merge successful for %s", githubURL)
 }
