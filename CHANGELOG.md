@@ -1,5 +1,19 @@
 # Change Log
 
+## [v0.3.0](https://github.com/seemethere/unir/tree/v0.3.0) (2018-01-19)
+[Full Changelog](https://github.com/seemethere/unir/compare/v0.2.0...v0.3.0)
+
+**Implemented enhancements:**
+
+- Add listeners for commit statuses [\#8](https://github.com/seemethere/unir/issues/8)
+
+**Merged pull requests:**
+
+- Create LICENSE [\#11](https://github.com/seemethere/unir/pull/11) ([seemethere](https://github.com/seemethere))
+- Merge pull requests on successful commit statuses [\#9](https://github.com/seemethere/unir/pull/9) ([seemethere](https://github.com/seemethere))
+- Add integration authentication, removes client auth [\#7](https://github.com/seemethere/unir/pull/7) ([seemethere](https://github.com/seemethere))
+- Add installation instructions [\#6](https://github.com/seemethere/unir/pull/6) ([seemethere](https://github.com/seemethere))
+
 ## [v0.2.0](https://github.com/seemethere/unir/tree/v0.2.0) (2018-01-17)
 [Full Changelog](https://github.com/seemethere/unir/compare/v0.1.1...v0.2.0)
 
