@@ -1,5 +1,17 @@
 # Change Log
 
+## [v0.4.2](https://github.com/seemethere/unir/tree/v0.4.2) (2018-04-02)
+[Full Changelog](https://github.com/seemethere/unir/compare/v0.4.1...v0.4.2)
+
+**Fixed bugs:**
+
+- Commit statuses for unir should not trigger merges [\#14](https://github.com/seemethere/unir/issues/14)
+
+**Merged pull requests:**
+
+- Don't trigger merge on our own status events [\#15](https://github.com/seemethere/unir/pull/15) ([seemethere](https://github.com/seemethere))
+- Update golang to 1.10.1 [\#13](https://github.com/seemethere/unir/pull/13) ([seemethere](https://github.com/seemethere))
+
 ## [v0.4.1](https://github.com/seemethere/unir/tree/v0.4.1) (2018-04-02)
 [Full Changelog](https://github.com/seemethere/unir/compare/v0.4.0...v0.4.1)
 
