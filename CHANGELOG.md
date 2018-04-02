@@ -1,5 +1,8 @@
 # Change Log
 
+## [v0.4.1](https://github.com/seemethere/unir/tree/v0.4.1) (2018-04-02)
+[Full Changelog](https://github.com/seemethere/unir/compare/v0.4.0...v0.4.1)
+
 ## [v0.4.0](https://github.com/seemethere/unir/tree/v0.4.0) (2018-04-02)
 [Full Changelog](https://github.com/seemethere/unir/compare/v0.3.0...v0.4.0)
 
