@@ -302,9 +302,10 @@ func mergePullRequest(client *github.Client, owner, repo, sha string, prNumber i
 		return
 	}
 
+	reached, reason := AgreementReached(config.Whitelist, votes, &opts)
 	// Exit early on non-agreements
-	if !AgreementReached(config.Whitelist, votes, &opts) {
-		doStatus("setting pending status", "pending", "Waiting to merge automatically...")
+	if !reached {
+		doStatus("setting pending status", "pending", fmt.Sprintf("Automatic merge is pending, %s", reason))
 		log.Infof("Agreement not reached! Staying put on %s", githubURL)
 		return
 	}
