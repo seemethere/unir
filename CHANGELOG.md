@@ -1,5 +1,12 @@
 # Change Log
 
+## [v0.4.0](https://github.com/seemethere/unir/tree/v0.4.0) (2018-04-02)
+[Full Changelog](https://github.com/seemethere/unir/compare/v0.3.0...v0.4.0)
+
+**Merged pull requests:**
+
+- Create commit statuses instead of posting comment [\#12](https://github.com/seemethere/unir/pull/12) ([seemethere](https://github.com/seemethere))
+
 ## [v0.3.0](https://github.com/seemethere/unir/tree/v0.3.0) (2018-01-19)
 [Full Changelog](https://github.com/seemethere/unir/compare/v0.2.0...v0.3.0)
 
