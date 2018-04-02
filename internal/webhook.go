@@ -202,7 +202,7 @@ func handleStatus(integrationID int, keyfile string, statusEvent github.StatusEv
 		log.Debugf("Skipping unsuccessful commit status event %s", *statusEvent.TargetURL)
 		return
 	}
-	client := createGithubClient(integrationID, *statusEvent.Installation.ID, keyfile)
+	client := createGithubClient(integrationID, int(*statusEvent.Installation.ID), keyfile)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	// Grab open pull requests relating to sha with the most updated being first
@@ -246,7 +246,7 @@ func handleStatus(integrationID int, keyfile string, statusEvent github.StatusEv
 }
 
 func handlePullRequestReview(integrationID int, keyfile string, reviewEvent github.PullRequestReviewEvent) {
-	client := createGithubClient(integrationID, *reviewEvent.Installation.ID, keyfile)
+	client := createGithubClient(integrationID, int(*reviewEvent.Installation.ID), keyfile)
 	log.Debugf("[%s] STARTED handling pull request review", *reviewEvent.Review.HTMLURL)
 	mergePullRequest(client, *reviewEvent.Repo.Owner.Login, *reviewEvent.Repo.Name, *reviewEvent.PullRequest.Head.SHA, *reviewEvent.PullRequest.Number)
 }
