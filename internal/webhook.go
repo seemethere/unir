@@ -199,7 +199,11 @@ func createGithubClient(integrationID, installationID int, keyfile string) *gith
 
 func handleStatus(integrationID int, keyfile string, statusEvent github.StatusEvent) {
 	if *statusEvent.State != "success" {
-		log.Debugf("Skipping unsuccessful commit status event %s", *statusEvent.TargetURL)
+		url := ""
+		if statusEvent.TargetURL != nil {
+			url = *statusEvent.TargetURL
+		}
+		log.Debugf("Skipping unsuccessful commit status event", url)
 		return
 	}
 	client := createGithubClient(integrationID, int(*statusEvent.Installation.ID), keyfile)
