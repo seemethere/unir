@@ -36,7 +36,7 @@ func TestAgreementReached(t *testing.T) {
 	}
 
 	for _, testcase := range testcases {
-		actual := AgreementReached(testcase.members, testcase.votes, testcase.opts)
+		actual, _ := AgreementReached(testcase.members, testcase.votes, testcase.opts)
 		if actual != testcase.expected {
 			t.Errorf(
 				"Expected: %v, Got %v\nmembers: %v\nvotes: %v\nopts: %v",

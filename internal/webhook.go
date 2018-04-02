@@ -277,13 +277,36 @@ func mergePullRequest(client *github.Client, owner, repo, sha string, prNumber i
 		mergeMethod = config.MergeMethod
 	}
 
-	// Exit early on non-agreements
-	if !AgreementReached(config.Whitelist, votes, &opts) {
-		log.Infof("Agreement not reached! Staying put on %s", githubURL)
-		return
+	doStatus := func(step, state, description string) {
+		statusContext := "unir"
+		// Create a commit status on the SHA that represents the merge status
+		_, _, err = client.Repositories.CreateStatus(
+			ctx,
+			owner,
+			repo,
+			sha,
+			&github.RepoStatus{
+				State:       &state,
+				Description: &description,
+				Context:     &statusContext,
+			},
+		)
+
+		if err != nil {
+			log.Errorf("Creating commit status failed for %s on step %s: %v", githubURL, step, err)
+		}
 	}
 
 	if editingConfig(ctx, client, owner, repo, prNumber) {
+		doStatus("config editing", "failure", "Unable to merge automatically, editing unir config")
+		return
+	}
+
+	reached, reason := AgreementReached(config.Whitelist, votes, &opts)
+	// Exit early on non-agreements
+	if !reached {
+		doStatus("setting pending status", "pending", fmt.Sprintf("Automatic merge is pending, %s", reason))
+		log.Infof("Agreement not reached! Staying put on %s", githubURL)
 		return
 	}
 
@@ -300,19 +323,9 @@ func mergePullRequest(client *github.Client, owner, repo, sha string, prNumber i
 	// We don't reach our success criteria
 	if resp.StatusCode != 200 {
 		log.Errorf("Merge failed for %s: %s, %v", githubURL, result.GetMessage(), err)
-		errorMessage := fmt.Sprintf("Unable to merge! %s", result.GetMessage())
-		_, _, err := client.Issues.CreateComment(
-			ctx,
-			owner,
-			repo,
-			prNumber,
-			&github.IssueComment{Body: &errorMessage},
-		)
-		if err != nil {
-			log.Errorf("Error posting comment in %s: %v", githubURL, err)
-		}
+		doStatus("merge failure", "failure", "Failed to merge automatically")
 		return
 	}
-
+	doStatus("successful merge", "success", "Merged automatically with unir")
 	log.Infof("Merge successful for %s", githubURL)
 }

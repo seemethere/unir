@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -12,7 +13,7 @@ type AgreementOptions struct {
 // AgreementReached determines whether members have reached an agreement
 // If the number of members who answered true is greater than the
 // threshold the function returns true.
-func AgreementReached(members []string, votes map[string]bool, opts *AgreementOptions) bool {
+func AgreementReached(members []string, votes map[string]bool, opts *AgreementOptions) (bool, string) {
 	if opts == nil {
 		opts = &AgreementOptions{Threshold: 1, NeedsConsensus: true}
 	}
@@ -27,8 +28,12 @@ func AgreementReached(members []string, votes map[string]bool, opts *AgreementOp
 			numFor++
 		} else if (*opts).NeedsConsensus {
 			// Return out early if we need a consensus
-			return false
+			return false, "consensus needed"
 		}
 	}
-	return numFor >= (*opts).Threshold
+	if numFor >= (*opts).Threshold {
+		return true, ""
+	} else {
+		return false, fmt.Sprintf("%d more approval(s) needed", (*opts).Threshold-numFor)
+	}
 }
