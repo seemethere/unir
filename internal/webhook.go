@@ -198,6 +198,10 @@ func createGithubClient(integrationID, installationID int, keyfile string) *gith
 }
 
 func handleStatus(integrationID int, keyfile string, statusEvent github.StatusEvent) {
+	// Exit early when handling our own statuses
+	if statusEvent.GetContext() == "unir" {
+		return
+	}
 	if *statusEvent.State != "success" {
 		url := ""
 		if statusEvent.TargetURL != nil {
