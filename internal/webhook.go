@@ -249,6 +249,7 @@ func handleStatus(integrationID int, keyfile string, statusEvent github.StatusEv
 			*statusEvent.Repo.Name,
 			*pullRequest.Head.SHA,
 			*pullRequest.Number,
+			*reviewEvent.PullRequest.Title,
 		)
 	}
 }
@@ -256,10 +257,22 @@ func handleStatus(integrationID int, keyfile string, statusEvent github.StatusEv
 func handlePullRequestReview(integrationID int, keyfile string, reviewEvent github.PullRequestReviewEvent) {
 	client := createGithubClient(integrationID, int(*reviewEvent.Installation.ID), keyfile)
 	log.Debugf("[%s] STARTED handling pull request review", *reviewEvent.Review.HTMLURL)
-	mergePullRequest(client, *reviewEvent.Repo.Owner.Login, *reviewEvent.Repo.Name, *reviewEvent.PullRequest.Head.SHA, *reviewEvent.PullRequest.Number)
+	mergePullRequest(client, *reviewEvent.Repo.Owner.Login, *reviewEvent.Repo.Name, *reviewEvent.PullRequest.Head.SHA, *reviewEvent.PullRequest.Number, *reviewEvent.PullRequest.Title)
 }
 
-func mergePullRequest(client *github.Client, owner, repo, sha string, prNumber int) {
+func checkMergeBlockKeywords(mergeBlockKeywords []string, prTitle string) {
+	if len(mergeBlockKeywords) == 0 {
+		mergeBlockKeywords = append(mergeBlockKeywords, "WIP:")
+	}
+	for _, word := range mergeBlockKeywords {
+		if prTitle.contains(word) {
+			return true
+		}
+	}
+	return false
+}
+
+func mergePullRequest(client *github.Client, owner, repo, sha string, prNumber int, prTitle string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	githubURL := fmt.Sprintf("https://github.com/%s/%s/pull/%d", owner, repo, prNumber)
@@ -307,6 +320,11 @@ func mergePullRequest(client *github.Client, owner, repo, sha string, prNumber i
 
 	if editingConfig(ctx, client, owner, repo, prNumber) {
 		doStatus("config editing", "failure", "Unable to merge automatically, editing unir config")
+		return
+	}
+
+	if checkMergeBlockKeywords(config.MergeBlockKeywords, prTitle) {
+		doStatus("checking keywords that block merging", "failure", "Can't merge currently, title contains keywords that block merges.")
 		return
 	}
 
