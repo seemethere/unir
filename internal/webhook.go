@@ -265,7 +265,7 @@ func checkMergeBlockKeywords(mergeBlockKeywords []string, prTitle string) {
 		mergeBlockKeywords = append(mergeBlockKeywords, "WIP:")
 	}
 	for _, word := range mergeBlockKeywords {
-		if prTitle.contains(word) {
+		if strings.Contains(prTitle, word) {
 			return true
 		}
 	}
