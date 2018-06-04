@@ -249,7 +249,7 @@ func handleStatus(integrationID int, keyfile string, statusEvent github.StatusEv
 			*statusEvent.Repo.Name,
 			*pullRequest.Head.SHA,
 			*pullRequest.Number,
-			*reviewEvent.PullRequest.Title,
+			*pullRequest.Title,
 		)
 	}
 }
@@ -260,7 +260,7 @@ func handlePullRequestReview(integrationID int, keyfile string, reviewEvent gith
 	mergePullRequest(client, *reviewEvent.Repo.Owner.Login, *reviewEvent.Repo.Name, *reviewEvent.PullRequest.Head.SHA, *reviewEvent.PullRequest.Number, *reviewEvent.PullRequest.Title)
 }
 
-func checkMergeBlockKeywords(mergeBlockKeywords []string, prTitle string) {
+func checkMergeBlockKeywords(mergeBlockKeywords []string, prTitle string) bool {
 	if len(mergeBlockKeywords) == 0 {
 		mergeBlockKeywords = append(mergeBlockKeywords, "WIP:")
 	}
