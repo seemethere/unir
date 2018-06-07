@@ -362,7 +362,7 @@ func mergePullRequest(client *github.Client, owner, repo, sha string, prNumber i
 	}
 
 	if checkMergeBlockKeywords(config.MergeBlockKeywords, prTitle) {
-		doStatus("checking keywords that block merging", "failure", "Can't merge currently, title contains keywords that block merges.")
+		doStatus("checking keywords that block merging", "failure", "Automatic merging blocked, title contains keywords that prevent unir from automatically merging")
 		return
 	}
 
