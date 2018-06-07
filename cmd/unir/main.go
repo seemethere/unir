@@ -22,14 +22,14 @@ func main() {
 	id := (os.Getenv(INTEGRATION_ID))
 
 	debug := flag.Bool("debug", false, "Toggle debug mode")
-	test := flag.Bool("test", false, "Toggle for testing")
+	oauth := flag.Bool("oauth_mode", false, "Toggle for oauth")
 	port := flag.String("port", "8080", "Port to bind unir to")
 	flag.Parse()
 
 	// Use either a test handler which allows you to use a webhook
 	// or the regular handler which is integrated with an app
-	router := mux.NewRouter()
-	if *test {
+	var router *mux.Router
+	if *oauth {
 		router = internal.GenerateTestWebhookRouter(
 			[]byte(os.Getenv(WEBHOOK_SECRET)),
 			id,

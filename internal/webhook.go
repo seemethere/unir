@@ -16,20 +16,20 @@ import (
 )
 
 type GithubWebhookHandler struct {
-	Secret        []byte
-	integrationID int
-	apiToken      string
-	keyfile       string
-	testClient    bool
+	Secret           []byte
+	integrationID    int
+	apiToken         string
+	keyfile          string
+	needsOAuthClient bool
 }
 
 func GenerateTestWebhookRouter(secret []byte, apiToken, keyfile string) *mux.Router {
 	router := mux.NewRouter()
 	handler := GithubWebhookHandler{
-		Secret:     secret,
-		apiToken:   apiToken,
-		keyfile:    keyfile,
-		testClient: true,
+		Secret:           secret,
+		apiToken:         apiToken,
+		keyfile:          keyfile,
+		needsOAuthClient: true,
 	}
 	router.Handle("/", http.HandlerFunc(handler.handleGithubWebhook)).Methods("POST")
 	return router
@@ -37,10 +37,10 @@ func GenerateTestWebhookRouter(secret []byte, apiToken, keyfile string) *mux.Rou
 
 func NewWebhookHandler(secret []byte, integrationID int, keyfile string) *mux.Router {
 	handler := GithubWebhookHandler{
-		Secret:        secret,
-		integrationID: integrationID,
-		keyfile:       keyfile,
-		testClient:    false,
+		Secret:           secret,
+		integrationID:    integrationID,
+		keyfile:          keyfile,
+		needsOAuthClient: false,
 	}
 	router := mux.NewRouter()
 	router.Handle("/", http.HandlerFunc(handler.handleGithubWebhook)).Methods("POST")
@@ -63,9 +63,9 @@ func (handler *GithubWebhookHandler) handleGithubWebhook(w http.ResponseWriter, 
 	}
 	switch e := event.(type) {
 	case *github.PullRequestReviewEvent:
-		go handlePullRequestReview(handler.integrationID, handler.keyfile, handler.apiToken, *e, handler.testClient)
+		go handlePullRequestReview(handler.integrationID, handler.keyfile, handler.apiToken, *e, handler.needsOAuthClient)
 	case *github.StatusEvent:
-		go handleStatus(handler.integrationID, handler.keyfile, handler.apiToken, *e, handler.testClient)
+		go handleStatus(handler.integrationID, handler.keyfile, handler.apiToken, *e, handler.needsOAuthClient)
 	}
 }
 
@@ -200,30 +200,31 @@ func GrabConfig(ctx context.Context, client *github.Client, repo, owner string, 
 	return config, nil
 }
 
-func createGithubClient(integrationID, installationID int, keyfile, apiToken string, testClient bool) *github.Client {
-	if testClient {
+func createGithubClient(integrationID, installationID int, keyfile, apiToken string, needsOAuthClient bool) *github.Client {
+	if needsOAuthClient {
 		log.Debug("Creating a client based on test")
 		ctx := context.Background()
 		ts := oauth2.StaticTokenSource(
 			&oauth2.Token{AccessToken: apiToken},
 		)
 		return github.NewClient(oauth2.NewClient(ctx, ts))
-	} else {
-		log.Debug("Creating a client regularly")
-		itr, err := ghinstallation.NewKeyFromFile(
-			http.DefaultTransport,
-			integrationID,
-			installationID,
-			keyfile,
-		)
-		if err != nil {
-			log.Fatal(err)
-		}
-		return github.NewClient(&http.Client{Transport: itr})
 	}
+
+	log.Debug("Creating a client regularly")
+	itr, err := ghinstallation.NewKeyFromFile(
+		http.DefaultTransport,
+		integrationID,
+		installationID,
+		keyfile,
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return github.NewClient(&http.Client{Transport: itr})
+
 }
 
-func handleStatus(integrationID int, keyfile, apiToken string, statusEvent github.StatusEvent, testClient bool) {
+func handleStatus(integrationID int, keyfile, apiToken string, statusEvent github.StatusEvent, needsOAuthClient bool) {
 	// Exit early when handling our own statuses
 	if statusEvent.GetContext() == "unir" {
 		return
@@ -238,11 +239,11 @@ func handleStatus(integrationID int, keyfile, apiToken string, statusEvent githu
 	}
 
 	installationID := 0
-	if !testClient {
+	if !needsOAuthClient {
 		installationID = int(*statusEvent.Installation.ID)
 	}
 
-	client := createGithubClient(integrationID, installationID, keyfile, apiToken, testClient)
+	client := createGithubClient(integrationID, installationID, keyfile, apiToken, needsOAuthClient)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	// Grab open pull requests relating to sha with the most updated being first
@@ -286,13 +287,13 @@ func handleStatus(integrationID int, keyfile, apiToken string, statusEvent githu
 	}
 }
 
-func handlePullRequestReview(integrationID int, keyfile, apiToken string, reviewEvent github.PullRequestReviewEvent, testClient bool) {
-	//client := createGithubClient(integrationID, int(*reviewEvent.Installation.ID), keyfile, apiToken, testClient)
+func handlePullRequestReview(integrationID int, keyfile, apiToken string, reviewEvent github.PullRequestReviewEvent, needsOAuthClient bool) {
+	//client := createGithubClient(integrationID, int(*reviewEvent.Installation.ID), keyfile, apiToken, needsOAuthClient)
 	installationID := 0
-	if !testClient {
+	if !needsOAuthClient {
 		installationID = int(*reviewEvent.Installation.ID)
 	}
-	client := createGithubClient(integrationID, installationID, keyfile, apiToken, testClient)
+	client := createGithubClient(integrationID, installationID, keyfile, apiToken, needsOAuthClient)
 	log.Debugf("[%s] STARTED handling pull request review", *reviewEvent.Review.HTMLURL)
 	mergePullRequest(client, *reviewEvent.Repo.Owner.Login, *reviewEvent.Repo.Name, *reviewEvent.PullRequest.Head.SHA, *reviewEvent.PullRequest.Number, *reviewEvent.PullRequest.Title)
 }
