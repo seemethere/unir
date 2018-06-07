@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/gorilla/mux"
 	"github.com/seemethere/unir/internal"
 	log "github.com/sirupsen/logrus"
 )
@@ -18,22 +19,40 @@ var (
 )
 
 func main() {
-	id, err := strconv.Atoi(os.Getenv(INTEGRATION_ID))
-	if err != nil {
-		log.Fatal(err)
-	}
-	router := internal.NewWebhookHandler(
-		[]byte(os.Getenv(WEBHOOK_SECRET)),
-		id,
-		os.Getenv(KEYFILE),
-	)
+	id := (os.Getenv(INTEGRATION_ID))
+
 	debug := flag.Bool("debug", false, "Toggle debug mode")
+	test := flag.Bool("test", false, "Toggle for testing")
 	port := flag.String("port", "8080", "Port to bind unir to")
 	flag.Parse()
+
+	// Use either a test handler which allows you to use a webhook
+	// or the regular handler which is integrated with an app
+	router := mux.NewRouter()
+	if *test {
+		router = internal.GenerateTestWebhookRouter(
+			[]byte(os.Getenv(WEBHOOK_SECRET)),
+			id,
+			os.Getenv(KEYFILE),
+		)
+	} else {
+		id, err := strconv.Atoi(id)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		router = internal.NewWebhookHandler(
+			[]byte(os.Getenv(WEBHOOK_SECRET)),
+			id,
+			os.Getenv(KEYFILE),
+		)
+	}
+
 	if *debug {
 		log.SetLevel(log.DebugLevel)
 		log.Debug("Log level set to debug")
 	}
 	log.Infof("Starting unir on port %s", *port)
+
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", *port), router))
 }
