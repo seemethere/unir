@@ -1,3 +1,4 @@
+GOLANG_VERSION=$(shell cat GOLANG_VERSION)
 DEP="$(shell go env GOPATH)/bin/dep"
 
 all: build test
@@ -36,7 +37,8 @@ ensure: $(DEP)
 
 .PHONY: image
 image: ## Make docker image
-	docker build -t seemethere/unir:dev .
+image: clean
+	docker build --build-arg "GOLANG_VERSION=$(GOLANG_VERSION)" -t seemethere/unir:dev .
 
 .PHONY: run-dev
 run-dev: ## Run server in development mode
