@@ -11,6 +11,9 @@ whitelist:
 - alice
 approvals_needed: 3
 consensus_needed: false
+merge_block_keywords:
+- "WIP:"
+- "DO NOT MERGE"
 `)
 	conf, err := ReadConfig(input)
 	if err != nil {
@@ -33,6 +36,16 @@ consensus_needed: false
 		found := userMap[expectedUser]
 		if !found {
 			t.Errorf("Expected to find user %s but was not found...", expectedUser)
+		}
+	}
+	blockKeywordMap := make(map[string]bool)
+	for _, keyword := range conf.MergeBlockKeywords {
+		blockKeywordMap[keyword] = true
+	}
+	for _, expectedKeyword := range []string{"WIP:", "DO NOT MERGE"} {
+		found := blockKeywordMap[expectedKeyword]
+		if !found {
+			t.Errorf("Expected to find keyword %s but was not found...", expectedKeyword)
 		}
 	}
 }

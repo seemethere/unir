@@ -43,6 +43,13 @@ run-dev: ## Run server in development mode
 run-dev: image
 	docker run --rm -i -p 8080:8080 --name unir-dev -e UNIR_WEBHOOK_SECRET -e UNIR_CLIENT_TOKEN seemethere/unir:dev -debug
 
+
+.PHONY: run-test
+run-test: ## Run server in test mode (can be used as a webhook)
+run-test: image
+	docker run --rm -i -p 8080:8080 --name unir-dev -e UNIR_WEBHOOK_SECRET -e UNIR_INTEGRATION_ID seemethere/unir:dev -debug -test
+
+
 .PHONY: release
 release: # Release images to Docker Hub
 release: VERSION
