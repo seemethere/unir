@@ -1,4 +1,5 @@
-FROM golang:1.10.1-alpine as build
+ARG GOLANG_VERSION=1.10.3
+FROM golang:${GOLANG_VERSION}-alpine as build
 
 RUN apk --update add make
 

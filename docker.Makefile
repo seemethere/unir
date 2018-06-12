@@ -1,4 +1,5 @@
-GOLANG_IMAGE=golang:1.10.1
+GOLANG_VERSION=$(shell cat GOLANG_VERSION)
+GOLANG_IMAGE=golang:$(GOLANG_VERSION)
 WORKDIR=/go/src/github.com/seemethere/unir
 DOCKER_RUN=docker run --rm -i -v "$(CURDIR)":$(WORKDIR) -w $(WORKDIR)
 
