@@ -14,16 +14,6 @@ changes on the Github UI and `unir` will take care of the rest!
 make build
 ```
 
-# Usage as a docker image!
-
-Images are up on Docker Hub!
-
-Usage is as follows:
-
-```
-docker run -d -e UNIR_WEBHOOK_SECRET -e UNIR_CLIENT_TOKEN -p 8080:8080 seemethere/unir:latest
-```
-
 # Installation!
 
 To start using `unir` first add a configuration file called `.unir.yml` to the base directory of
