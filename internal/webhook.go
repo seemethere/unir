@@ -234,7 +234,7 @@ func handleStatus(integrationID int, keyfile, apiToken string, statusEvent githu
 		if statusEvent.TargetURL != nil {
 			url = *statusEvent.TargetURL
 		}
-		log.Debugf("Skipping unsuccessful commit status event", url)
+		log.Debugf("Skipping unsuccessful commit status event for %s", url)
 		return
 	}
 
@@ -268,7 +268,7 @@ func handleStatus(integrationID int, keyfile, apiToken string, statusEvent githu
 			*issue.Number,
 		)
 		if err != nil {
-			log.Errorf("Error grabbing pull request information for %s", issue.HTMLURL)
+			log.Errorf("Error grabbing pull request information for %s", *issue.HTMLURL)
 			return
 		}
 		// Don't waste API calls on old commits
