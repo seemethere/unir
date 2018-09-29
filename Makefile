@@ -1,10 +1,6 @@
 GOLANG_VERSION=$(shell cat GOLANG_VERSION)
-DEP="$(shell go env GOPATH)/bin/dep"
 
 all: build test
-
-$(DEP): ## Grab golang/dep utility
-	go get github.com/golang/dep/cmd/dep
 
 .PHONY: help
 help:
@@ -29,11 +25,6 @@ install:
 .PHONY: test
 test: ## Run all tests
 	go test -v ./...
-
-.PHONY: ensure
-ensure: ## Reload dependencies
-ensure: $(DEP)
-	$< ensure -v -update
 
 .PHONY: image
 image: ## Make docker image
